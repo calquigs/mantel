@@ -40,37 +40,31 @@ def test(X, Y, perms=10000, method="pearson", tail="two-tail", ignore_nans=False
     z : float
             Standard score (z-score)
     """
-
     # Ensure that X and Y are represented as Numpy arrays.
     X = np.asarray(X)
     Y = np.asarray(Y)
-
     # Check that X and Y are valid distance matrices.
-    if (
-        spatial.distance.is_valid_dm(np.nan_to_num(X)) == False
-        and spatial.distance.is_valid_y(X) == False
-    ):
-        raise ValueError("X is not a valid condensed or redundant distance matrix")
-    if (
-        spatial.distance.is_valid_dm(np.nan_to_num(Y)) == False
-        and spatial.distance.is_valid_y(Y) == False
-    ):
-        raise ValueError("Y is not a valid condensed or redundant distance matrix")
-
+    #if (
+    #    spatial.distance.is_valid_dm(np.nan_to_num(X)) == False
+    #    and spatial.distance.is_valid_y(X) == False
+    #):
+    #    raise ValueError("X is not a valid condensed or redundant distance matrix")
+    #if (
+    #    spatial.distance.is_valid_dm(np.nan_to_num(Y)) == False
+    #    and spatial.distance.is_valid_y(Y) == False
+    #):
+    #    raise ValueError("Y is not a valid condensed or redundant distance matrix")
     # If X or Y is a redundant distance matrix, reduce it to a condensed distance matrix.
     if len(X.shape) == 2:
         X = spatial.distance.squareform(X, force="tovector", checks=False)
     if len(Y.shape) == 2:
         Y = spatial.distance.squareform(Y, force="tovector", checks=False)
-
     # Check for size equality.
     if len(X) != len(Y):
         raise ValueError("X and Y are not of equal size")
-
     # Check for minimum size.
     if len(X) < 3:
         raise ValueError("X and Y should represent at least 3 objects")
-
     # Check finiteness of X and Y
     if not np.isfinite(X).all():
         raise ValueError(
@@ -81,22 +75,18 @@ def test(X, Y, perms=10000, method="pearson", tail="two-tail", ignore_nans=False
         raise ValueError('Y may contain NaNs, but "ignore_nans" must be set to True')
     if ignore_nans and finite_Y.all():
         ignore_nans = False  # ignore_nans is True but Y contains no nans
-
     # If Spearman correlation is requested, convert X and Y to ranks.
     method = method.lower()
     if method == "spearman":
         X, Y = stats.rankdata(X), stats.rankdata(Y)
         Y[~finite_Y] = np.nan  # retain any nans, so that these can be ignored later
-
     # Check for valid method parameter.
     elif method != "pearson":
         raise ValueError('The method should be set to "pearson" or "spearman"')
-
     # Check for valid tail parameter.
     tail = tail.lower()
     if tail not in ["upper", "lower", "two-tail"]:
         raise ValueError('The tail should be set to "upper", "lower", or "two-tail"')
-
     # Now we're ready to start the Mantel test using a number of optimizations:
     #
     # 1. Rather than compute correlation coefficients, we'll just compute the
@@ -113,20 +103,16 @@ def test(X, Y, perms=10000, method="pearson", tail="two-tail", ignore_nans=False
     #    permutations that were requested, we'll run a deterministic test where
     #    we try all possible permutations rather than sample the permutation
     #    space. This gives a faster, deterministic result.
-
     # Calculate the X and Y residuals, which will be used to compute the
     # covariance under each permutation.
     X_residuals = X - np.mean(X[finite_Y])
     Y_residuals = Y - np.mean(Y[finite_Y])
-
     # Expand the Y residuals to a redundant matrix.
     Y_residuals_as_matrix = spatial.distance.squareform(
         Y_residuals, force="tomatrix", checks=False
     )
-
     m = len(Y_residuals_as_matrix)  # number of objects
     n = np.math.factorial(m)  # number of possible matrix permutations
-
     # If the number of requested permutations is greater than the number of
     # possible permutations (m!) or the perms parameter is set to 0, then run a
     # deterministic Mantel test
@@ -136,7 +122,6 @@ def test(X, Y, perms=10000, method="pearson", tail="two-tail", ignore_nans=False
         else:
             correlations = deterministic_test(m, n, X_residuals, Y_residuals_as_matrix)
         # correlations[0] is the veridical correlation
-
     else:
         if ignore_nans:
             correlations = stochastic_test_with_nans(m, perms, X, Y_residuals_as_matrix)
@@ -145,20 +130,15 @@ def test(X, Y, perms=10000, method="pearson", tail="two-tail", ignore_nans=False
         correlations[0] = sum(X_residuals[finite_Y] * Y_residuals[finite_Y]) / np.sqrt(
             sum(X_residuals[finite_Y] ** 2) * sum(Y_residuals[finite_Y] ** 2)
         )  # compute veridical correlation and place in positon 0
-
     r = correlations[0]
-
     if tail == "upper":
         p = sum(correlations >= r) / len(correlations)
     elif tail == "lower":
         p = sum(correlations <= r) / len(correlations)
     elif tail == "two-tail":
         p = sum(abs(correlations) >= abs(r)) / len(correlations)
-
     z = (r - np.mean(correlations)) / np.std(correlations)
-
     return r, p, z
-
 
 def deterministic_test(m, n, X_residuals, Y_residuals_as_matrix):
     Y_residuals_permuted = np.zeros((m ** 2 - m) // 2)
